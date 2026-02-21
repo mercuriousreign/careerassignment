@@ -1,3 +1,6 @@
 langchain
 langchain-ollama
 langchain-chroma
+fastapi
+unicorn
+pydantic
