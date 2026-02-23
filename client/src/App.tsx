@@ -12,8 +12,7 @@ import * as THREE from 'three';
 import { Canvas, useFrame, type ThreeElements } from '@react-three/fiber';
 import { Html, useProgress } from '@react-three/drei';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import SplitText from './SplitText';
-import { Model } from './Model';
+
 
 function Loader() {
   const { progress } = useProgress();
@@ -83,17 +82,14 @@ function OrbitingSphere({
   );
 }
 
-function Box(props: ThreeElements['mesh']) {
-  const k = true;
+function Box({ speed = 2, ...props }: ThreeElements['mesh'] & { speed?: number }) {
   const meshRef = useRef<THREE.Mesh>(null!);
   const [hovered, setHover] = useState(false);
   const [active, setActive] = useState(false);
-  useFrame(
-    (state, delta) => (
-      (meshRef.current.rotation.x += delta * (k ? 2 : 1)),
-      (meshRef.current.rotation.y += delta * (k ? 2 : 1))
-    ),
-  );
+  useFrame((_state, delta) => {
+    meshRef.current.rotation.x += delta * speed;
+    meshRef.current.rotation.y += delta * speed;
+  });
   return (
     <mesh
       {...props}
@@ -142,7 +138,7 @@ function App() {
   };
 
   return (
-    <div className='min-h-screen flex flex-col items-center pb-8 pt-4'>
+    <div className='h-screen flex flex-col items-center pb-8 pt-4 overflow-hidden'>
       {loading && <p>Loading..</p>}
       <form
         onSubmit={fetchItem}
@@ -165,15 +161,15 @@ function App() {
               />
             </div>
             <div className='w-1/4 flex flex-col min-h-0'>
-              <div id='canvas-container' className='flex-1 min-h-0'>
+              <div id='canvas-container' className='flex-1 min-h-0 w-full'>
                 <Canvas gl={{ antialias: true }} >
                   <Suspense fallback={<Loader />}>
                     {/* <Model></Model> */}
                     <ambientLight intensity={0.1} />
                     <directionalLight color='white' position={[0, 0, 5]} />
-                    <Box></Box>
-                    <OrbitingSphere radius={1.4} speed={1.2} tilt={Math.PI / 4} color='#ff8800' />
-                    <OrbitingSphere radius={1.0} speed={2.0} tilt={-Math.PI / 3} color='#00ffcc' />
+                    <Box speed={loading ? 8 : 2} />
+                    <OrbitingSphere radius={1.4} speed={loading ? 4.8 : 1.2} tilt={Math.PI / 4} color='#ff8800' />
+                    <OrbitingSphere radius={1.0} speed={loading ? 8.0 : 2.0} tilt={-Math.PI / 3} color='#00ffcc' />
                     <EffectComposer>
                       <Bloom
                         intensity={1.5}
