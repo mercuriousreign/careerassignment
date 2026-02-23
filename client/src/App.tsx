@@ -11,6 +11,7 @@ import {
 import * as THREE from 'three';
 import { Canvas, useFrame, type ThreeElements } from '@react-three/fiber';
 import { Html, useProgress } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import SplitText from './SplitText';
 import { Model } from './Model';
 
@@ -49,11 +50,50 @@ function TypewriterText({
   return <>{displayed}</>;
 }
 
+function OrbitingSphere({
+  radius,
+  speed,
+  tilt,
+  color,
+}: {
+  radius: number;
+  speed: number;
+  tilt: number;
+  color: string;
+}) {
+  const meshRef = useRef<THREE.Mesh>(null!);
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime() * speed;
+    meshRef.current.position.set(
+      Math.cos(t) * radius,
+      Math.sin(t) * Math.sin(tilt) * radius,
+      Math.sin(t) * Math.cos(tilt) * radius,
+    );
+  });
+  return (
+    <mesh ref={meshRef}>
+      <sphereGeometry args={[0.12, 16, 16]} />
+      <meshStandardMaterial
+        color={color}
+        emissive={color}
+        emissiveIntensity={2}
+        toneMapped={false}
+      />
+    </mesh>
+  );
+}
+
 function Box(props: ThreeElements['mesh']) {
+  const k = true;
   const meshRef = useRef<THREE.Mesh>(null!);
   const [hovered, setHover] = useState(false);
   const [active, setActive] = useState(false);
-  useFrame((state, delta) => (meshRef.current.rotation.x += delta));
+  useFrame(
+    (state, delta) => (
+      (meshRef.current.rotation.x += delta * (k ? 2 : 1)),
+      (meshRef.current.rotation.y += delta * (k ? 2 : 1))
+    ),
+  );
   return (
     <mesh
       {...props}
@@ -64,7 +104,13 @@ function Box(props: ThreeElements['mesh']) {
       onPointerOut={(event) => setHover(false)}
     >
       <boxGeometry args={[1, 1, 1]} />
-      <meshStandardMaterial color={hovered ? 'hotpink' : '#2f74c0'} />
+      <meshStandardMaterial
+        color={hovered ? '#ff2020' : '#2060ff'}
+        emissive={hovered ? '#ff2020' : '#2060ff'}
+        emissiveIntensity={hovered ? 3 : 1.5}
+        wireframe={true}
+        toneMapped={false}
+      />
     </mesh>
   );
 }
@@ -96,43 +142,52 @@ function App() {
   };
 
   return (
-    <>
+    <div className='min-h-screen flex flex-col items-center pb-8 pt-4'>
       {loading && <p>Loading..</p>}
-      <form onSubmit={fetchItem}>
-        <div className='inputs'>
-          <div className='flex'>
-            <div className='w-3/4'>
-              {result != null && (
-                <label className='block my-2 p-2 bg-gray-100 rounded h-32 overflow-y-auto'>
-                  <TypewriterText text={result} speed={25} />
-                  {/* <SplitText text={result} delay={50} duration={0.6} /> */}
-                </label>
-              )}
+      <form
+        onSubmit={fetchItem}
+        className='w-full flex-1 flex flex-col min-h-0'
+      >
+        <div className='inputs w-full px-80 flex-1 flex flex-col min-h-0 '>
+          <div className='flex flex-1 min-h-0 py-4 px-4 border-2 border-solid border-be-neutral-300 rounded-2xl'>
+            <div className='w-3/4 flex flex-col min-h-0'>
+              <label className='flex-1 min-h-0 block my-2 p-2 bg-gray-100 rounded overflow-y-auto'>
+                {result != null && <TypewriterText text={result} speed={25} />}
+                {/* <SplitText text={result} delay={50} duration={0.6} /> */}
+              </label>
+
               <textarea
-                className='w-full'
+                className='w-full h-20 flex-shrink-0'
                 autoFocus
-                rows={5}
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
                 placeholder='Ask your career question…'
               />
             </div>
-            <div className='w-1/4'>
-              <div id='canvas-container'>
-                <Canvas>
+            <div className='w-1/4 flex flex-col min-h-0'>
+              <div id='canvas-container' className='flex-1 min-h-0'>
+                <Canvas gl={{ antialias: true }} >
                   <Suspense fallback={<Loader />}>
                     {/* <Model></Model> */}
+                    <ambientLight intensity={0.1} />
+                    <directionalLight color='white' position={[0, 0, 5]} />
                     <Box></Box>
-                    <mesh>
-                      <boxGeometry></boxGeometry>
-                      <meshStandardMaterial></meshStandardMaterial>
-                    </mesh>
+                    <OrbitingSphere radius={1.4} speed={1.2} tilt={Math.PI / 4} color='#ff8800' />
+                    <OrbitingSphere radius={1.0} speed={2.0} tilt={-Math.PI / 3} color='#00ffcc' />
+                    <EffectComposer>
+                      <Bloom
+                        intensity={1.5}
+                        luminanceThreshold={0.1}
+                        luminanceSmoothing={0.9}
+                        mipmapBlur
+                      />
+                    </EffectComposer>
                   </Suspense>
                 </Canvas>
               </div>
               {/* <input type='submit' value='Submit' /> */}
               <button
-                className='w-full'
+                className='w-full h-20 mx-2 mt-1.5 flex-shrink-0'
                 type='button'
                 onClick={() => fetchItem()}
               >
@@ -142,7 +197,7 @@ function App() {
           </div>
         </div>
       </form>
-    </>
+    </div>
     // <>
     //   <div>
     //     <a href='https://vite.dev' target='_blank'>
