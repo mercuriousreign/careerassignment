@@ -3,10 +3,11 @@ from langchain_core.prompts import ChatPromptTemplate
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 import traceback
-
+import os
 
 class ResponseBody(BaseModel):
     response: str
@@ -15,19 +16,14 @@ class ResponseBody(BaseModel):
 app = FastAPI()
 
 # Allow Vite dev server (often localhost:5173 or 127.0.0.1:5173)
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
+# origins = [
+#     "http://localhost:5173",
+#     "http://127.0.0.1:5173",
+# ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -83,6 +79,10 @@ def global_exception_handler(request, exc):
         status_code=500,
         content={"detail": str(exc), "result": f"Server error: {exc!s}"},
     )
+
+dist_path = os.path.join(os.path.dirname(__file__), "client", "dist")
+if os.path.exists(dist_path):
+    app.mount("/", StaticFiles(directory=dist_path, html=True), name="static")
 
 
 if __name__ == "__main__":
