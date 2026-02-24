@@ -45,11 +45,6 @@ Here is the question to answer: {question}
 prompt = ChatPromptTemplate.from_template(template)
 chain = prompt | model
 
-@app.get("/")
-def read_root():
-    result = chain.invoke({"question": "I have a degree in Computer Science, how should I get a job in the software industry"})
-    return {"result": result}
-
 @app.options("/response")
 def options_response():
     return {}
