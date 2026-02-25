@@ -103,35 +103,65 @@ function Box({
   );
 }
 
+type Message = { role: 'human' | 'ai'; text: string };
+
 function App() {
   const [question, setQuestion] = useState('');
-  const [result, setResult] = useState<string | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, loading]);
 
   const fetchItem = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!question.trim()) return;
+    const trimmed = question.trim();
+    if (!trimmed) return;
     setLoading(true);
-    setResult(null);
+    setQuestion('');
+    setMessages((prev) => [...prev, { role: 'human', text: trimmed }]);
     try {
       const { data } = await api.post<{ result: string }>('/response', {
-        response: question,
+        response: trimmed,
       });
-      setResult(data.result ?? '');
-      //setResult((result) => result?.concat(data.result) ?? '');
+      setMessages((prev) => [
+        ...prev,
+        { role: 'ai', text: data.result ?? '' },
+      ]);
     } catch (error) {
       console.error("didn't work", error);
-      setResult(
-        'Request failed. Is the backend running on http://localhost:8000?',
-      );
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          text: 'Request failed. Is the backend running on http://localhost:8000?',
+        },
+      ]);
     } finally {
       setLoading(false);
     }
   };
 
+  const clearHistory = async () => {
+    try {
+      await api.delete('/history');
+    } catch {
+      // best-effort
+    }
+    setMessages([]);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      fetchItem();
+    }
+  };
+
   return (
     <div className='h-screen flex flex-col items-center pb-8 pt-4 overflow-hidden'>
-      {loading && <p>Loading..</p>}
       <form
         onSubmit={fetchItem}
         className='w-full flex-1 flex flex-col min-h-0'
@@ -139,24 +169,49 @@ function App() {
         <div className='inputs w-full px-80 flex-1 flex flex-col min-h-0 '>
           <div className='flex flex-1 min-h-0 py-4 px-4 border-2 border-solid border-be-neutral-300 rounded-2xl'>
             <div className='w-3/4 flex flex-col min-h-0'>
-              <label className='flex-1 min-h-0 block my-2 p-2 bg-gray-100 rounded overflow-y-auto'>
-                {result != null && <TypewriterText text={result} speed={25} />}
-                {/* <SplitText text={result} delay={50} duration={0.6} /> */}
-              </label>
+              <div className='flex-1 min-h-0 flex flex-col my-2 p-2 bg-gray-100 rounded overflow-y-auto gap-2'>
+                {messages.length === 0 && (
+                  <p className='text-gray-400 text-sm m-auto'>
+                    Start the conversation — your career counselor is ready.
+                  </p>
+                )}
+                {messages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`max-w-[85%] px-3 py-2 rounded-xl text-sm whitespace-pre-wrap ${
+                      msg.role === 'human'
+                        ? 'self-end bg-blue-600 text-white'
+                        : 'self-start bg-white text-gray-800 border border-gray-200'
+                    }`}
+                  >
+                    {msg.role === 'ai' && i === messages.length - 1 ? (
+                      <TypewriterText text={msg.text} speed={18} />
+                    ) : (
+                      msg.text
+                    )}
+                  </div>
+                ))}
+                {loading && (
+                  <div className='self-start bg-white text-gray-400 border border-gray-200 px-3 py-2 rounded-xl text-sm'>
+                    Thinking…
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
 
               <textarea
                 className='w-full h-20 flex-shrink-0'
                 autoFocus
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
-                placeholder='Ask your career question…'
+                onKeyDown={handleKeyDown}
+                placeholder='Ask your career question… (Enter to send, Shift+Enter for newline)'
               />
             </div>
             <div className='w-1/4 flex flex-col min-h-0'>
               <div id='canvas-container' className='flex-1 min-h-0 w-full'>
                 <Canvas gl={{ antialias: true }}>
                   <Suspense fallback={<Loader />}>
-                    {/* <Model></Model> */}
                     <ambientLight intensity={0.1} />
                     <directionalLight color='white' position={[0, 0, 5]} />
                     <Box speed={loading ? 8 : 2} />
@@ -183,13 +238,19 @@ function App() {
                   </Suspense>
                 </Canvas>
               </div>
-              {/* <input type='submit' value='Submit' /> */}
               <button
-                className='w-full h-20 mx-2 mt-1.5 flex-shrink-0'
-                type='button'
-                onClick={() => fetchItem()}
+                className='w-full h-12 mx-2 mt-1.5 flex-shrink-0'
+                type='submit'
+                disabled={loading}
               >
                 Send
+              </button>
+              <button
+                className='w-full h-8 mx-2 mt-1 flex-shrink-0 text-sm text-gray-500'
+                type='button'
+                onClick={clearHistory}
+              >
+                New Chat
               </button>
             </div>
           </div>
