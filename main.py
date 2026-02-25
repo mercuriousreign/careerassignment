@@ -52,11 +52,6 @@ chain = prompt | model
 chat_history: list = []
 
 
-@app.get("/")
-def read_root():
-    return {"status": "Career Counselor API is running"}
-
-
 @app.options("/response")
 def options_response():
     return {}
