@@ -3,10 +3,12 @@ from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import uvicorn
 import traceback
+import os
 
 
 class ResponseBody(BaseModel):
@@ -15,14 +17,9 @@ class ResponseBody(BaseModel):
 
 app = FastAPI()
 
-origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["GET", "POST", "OPTIONS", "PUT", "DELETE"],
     allow_headers=["*"],
@@ -94,6 +91,14 @@ def global_exception_handler(request, exc):
         content={"detail": str(exc), "result": f"Server error: {exc!s}"},
     )
 
+
+dist_path = os.path.join(os.path.dirname(__file__), "client", "dist")
+if os.path.exists(dist_path):
+    app.mount("/assets", StaticFiles(directory=os.path.join(dist_path, "assets")), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        return FileResponse(os.path.join(dist_path, "index.html"))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
